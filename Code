@@ -1,1 +1,146 @@
 //Project_code
+import cv2
+import urllib.request
+import numpy as np
+
+def nothing(x):
+    pass
+
+#change the IP address below according to the
+#IP shown in the Serial monitor of Arduino code
+url='http://192.168.147.226/cam-lo.jpg'
+
+cv2.namedWindow("live transmission", cv2.WINDOW_AUTOSIZE)
+
+cv2.namedWindow("Tracking")
+cv2.createTrackbar("LH", "Tracking", 0, 255, nothing)
+cv2.createTrackbar("LS", "Tracking", 0, 255, nothing)
+cv2.createTrackbar("LV", "Tracking", 0, 255, nothing)
+cv2.createTrackbar("UH", "Tracking", 255, 255, nothing)
+cv2.createTrackbar("US", "Tracking", 255, 255, nothing)
+cv2.createTrackbar("UV", "Tracking", 255, 255, nothing)
+
+while True:
+    img_resp=urllib.request.urlopen(url)
+    imgnp=np.array(bytearray(img_resp.read()),dtype=np.uint8)
+    frame=cv2.imdecode(imgnp,-1)
+
+    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+
+    l_h = cv2.getTrackbarPos("LH", "Tracking")
+    l_s = cv2.getTrackbarPos("LS", "Tracking")
+    l_v = cv2.getTrackbarPos("LV", "Tracking")
+
+    u_h = cv2.getTrackbarPos("UH", "Tracking")
+    u_s = cv2.getTrackbarPos("US", "Tracking")
+    u_v = cv2.getTrackbarPos("UV", "Tracking")
+
+    l_b = np.array([l_h, l_s, l_v])
+    u_b = np.array([u_h, u_s, u_v])
+
+    mask = cv2.inRange(hsv, l_b, u_b) 
+    res = cv2.bitwise_and(frame, frame, mask=mask)
+
+    cv2.imshow("live transmission", frame)
+    cv2.imshow("mask", mask)
+    cv2.imshow("res", res)
+    key=cv2.waitKey(5)
+    if key==ord('q'):
+        break
+
+cv2.destroyAllWindows()
+
+
+
+#include <WebServer.h>
+#include <WiFi.h>
+#include <esp32cam.h>
+
+const char* WIFI_SSID = "ssid";
+const char* WIFI_PASS = "password";
+
+WebServer server(80);
+
+
+static auto loRes = esp32cam::Resolution::find(320, 240);
+static auto midRes = esp32cam::Resolution::find(350, 530);
+static auto hiRes = esp32cam::Resolution::find(800, 600);
+void serveJpg()
+{
+  auto frame = esp32cam::capture();
+  if (frame == nullptr) {
+    Serial.println("CAPTURE FAIL");
+    server.send(503, "", "");
+    return;
+  }
+  Serial.printf("CAPTURE OK %dx%d %db\n", frame->getWidth(), frame->getHeight(),
+                static_cast<int>(frame->size()));
+
+  server.setContentLength(frame->size());
+  server.send(200, "image/jpeg");
+  WiFiClient client = server.client();
+  frame->writeTo(client);
+}
+
+Void handleJpgLo()
+{
+  if (!esp32cam::Camera.changeResolution(loRes)) {
+    Serial.println("SET-LO-RES FAIL");
+  }
+  serveJpg();
+}
+
+Void handleJpgHi()
+{
+  if (!esp32cam::Camera.changeResolution(hiRes)) {
+    Serial.println("SET-HI-RES FAIL");
+  }
+  serveJpg();
+}
+
+Void handleJpgMid()
+{
+  if (!esp32cam::Camera.changeResolution(midRes)) {
+    Serial.println("SET-MID-RES FAIL");
+  }
+  serveJpg();
+}
+
+
+Void  setup(){
+  Serial.begin(115200);
+  Serial.println();
+  {
+    using namespace esp32cam;
+    Config cfg;
+    cfg.setPins(pins::AiThinker);
+    cfg.setResolution(hiRes);
+    cfg.setBufferCount(2);
+    cfg.setJpeg(80);
+
+    bool ok = Camera.begin(cfg);
+    Serial.println(ok ? "CAMERA OK" : "CAMERA FAIL");
+  }
+  WiFi.persistent(false);
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(WIFI_SSID, WIFI_PASS);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+  }
+  Serial.print("http://");
+  Serial.println(WiFi.localIP());
+  Serial.println("  /cam-lo.jpg");
+  Serial.println("  /cam-hi.jpg");
+  Serial.println("  /cam-mid.jpg");
+
+  server.on("/cam-lo.jpg", handleJpgLo);
+  server.on("/cam-hi.jpg", handleJpgHi);
+  server.on("/cam-mid.jpg", handleJpgMid);
+
+  server.begin();
+}
+
+Void loop()
+{
+  server.handleClient();
+}
