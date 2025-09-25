@@ -1,4 +1,3 @@
-
 WRO 2025 – Futuros Ingenieros: Robot Autónomo
 
 ...
