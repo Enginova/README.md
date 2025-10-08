@@ -8,7 +8,7 @@ Integrantes
 
 "Mi nombre es Hugo Silupu, estudiante de ingeniería de telecomunicaciones". 
 - Mathias Alain Ledesma Romero – Mecánica
-
+IMG-20251007-WA0053.jpg
 "Mi nombre es Mathias Ledesma, estudiante de ingeniería electrónica en la Universidad Nacional Mayor de San Marcos, aficionado a la robótica y al mundo digital". 
 - Adriana Grecia Flores Ocrospoma – Repositorio y Documentación 
 
@@ -20,3 +20,4 @@ Herramientas
 - Sensores ultrasónicos
 - Camara ESP32-CAM
 - Modulo de ESP32-CAM
+
